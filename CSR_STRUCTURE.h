@@ -12,6 +12,8 @@ public:
 	CSR_STRUCTURE(const CSR_STRUCTURE &csr);
 	~CSR_STRUCTURE();
 
+	void increase_nnz_val_(void);
+
 	double * nnz_val_;
 	int * col_ptr_;
 	int * row_ptr_;

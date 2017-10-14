@@ -53,4 +53,11 @@ CSR_STRUCTURE::~CSR_STRUCTURE(void)
 	
 }
 
+void CSR_STRUCTURE::increase_nnz_val_(void)
+{
+	this->nonzeroes_ += 1;
+	double *new_nnz_val_ = new double[this->nonzeroes_];
+
+}
+
 
