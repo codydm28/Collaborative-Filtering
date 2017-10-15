@@ -53,6 +53,7 @@ CSR_STRUCTURE::~CSR_STRUCTURE(void)
 	
 }
 
+/*
 void CSR_STRUCTURE::increase_nnz_val_(void)
 {
 	nonzeroes_ += 1;
@@ -97,5 +98,5 @@ void CSR_STRUCTURE::increase_nnz_val_(void)
 	delete[] new_nnz_val;
 
 }
-
+*/
 

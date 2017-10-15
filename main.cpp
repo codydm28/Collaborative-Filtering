@@ -5,6 +5,7 @@
 #include <string>
 #include <cstdlib>
 #include <cmath>
+#include <vector>
 
 //returns pointer to new transpose matrix
 CSR_STRUCTURE* create_transpose_matrix(CSR_STRUCTURE &csr_matrix)
@@ -141,8 +142,17 @@ CSR_STRUCTURE* input_matrix_to_CSR(std::ifstream &in_file)
 CSR_STRUCTURE* similarity_CSR(CSR_STRUCTURE &csr_matrix)
 {
 
-	CSR_STRUCTURE sim_CSR(csr_matrix.rows_, csr_matrix.columns_, 0);
+	
+	//double *sim_nnz = new double[csr_matrix.rows_*csr_matrix.columns_];
+	//int *sim_col = new int[csr_matrix.rows_*csr_matrix.columns_];
+	std::vector<double> sim_nnz;
+	std::vector<int> sim_col;
 	int *row_counts = new int[csr_matrix.rows_ + 1];
+
+	for (int i = 0; i < csr_matrix.rows_ + 1; i++) {
+		row_counts[i] = 0;
+	}
+
 	int col_ctr_index = 0;
 	int col_ctr = 0;
 
@@ -201,16 +211,18 @@ CSR_STRUCTURE* similarity_CSR(CSR_STRUCTURE &csr_matrix)
 			}//end while
 
 			/*calculate the cos(i,j)*/
-			//only stores the non-zero calculations in the CSR structure
+			//only stores the non-zero calculations in the CSR structure and counts non-zero values
 			if (lengthi * lengthj)
 			{
 				cosine /= sqrt(lengthi * lengthj);
 				if (cosine > 0) 
 				{
-					sim_CSR.increase_nnz_val_();
-					sim_CSR.nnz_val_[col_ctr_index] = cosine;
-					sim_CSR.col_ptr_[col_ctr_index] = col_ctr;
-					sim_CSR.row_ptr_[i+1]++;
+					//sim_CSR.increase_nnz_val_();
+					//sim_nnz[col_ctr_index] = cosine;
+					//sim_col[col_ctr_index] = col_ctr;
+					sim_nnz.push_back(cosine);
+					sim_col.push_back(col_ctr);
+					row_counts[i+1]++;
 					col_ctr_index++;
 				}
 				else {
@@ -222,13 +234,26 @@ CSR_STRUCTURE* similarity_CSR(CSR_STRUCTURE &csr_matrix)
 				col_ctr++;
 			}
 			//std::cout << "for row i=" << i << "nnz_val_[" << j << "] = " << cosine << ", but actual value at nnz_val_[" << j << "] is " << sim_CSR.nnz_val_[j] << std::endl;
-
+			std::cout << col_ctr_index << std::endl;
 		}//end for j
-		sim_CSR.row_ptr_[i+1] += sim_CSR.row_ptr_[i];
-		for (int k = 0; k < sim_CSR.nonzeroes_; k++) {
-			std::cout << "actual value at nnz_val_[" << k << "] is " << sim_CSR.nnz_val_[k] << std::endl;
-		}
+		row_counts[i+1] += row_counts[i];
+		//for (int k = 0; k < sim_CSR.nonzeroes_; k++) {
+			//std::cout << "actual value at nnz_val_[" << k << "] is " << sim_CSR.nnz_val_[k] << std::endl;
+		//}
 	}//end for i
+	std::cout << "out of cosine for loops" << std::endl;
+	CSR_STRUCTURE sim_CSR(csr_matrix.rows_, csr_matrix.rows_, col_ctr_index);
+	sim_CSR.nnz_val_vec = sim_nnz;
+	sim_CSR.col_ptr_vec = sim_col;
+	
+	for (int i = 0; i < sim_CSR.nonzeroes_; i++) {
+		sim_CSR.nnz_val_[i] = sim_nnz[i];
+		sim_CSR.col_ptr_[i] = sim_col[i];
+	}
+
+	for (int i = 0; i < sim_CSR.rows_+1; i++) {
+		sim_CSR.row_ptr_[i] = row_counts[i];
+	}
 
 	/*
 	std::cout << "values in sim_CSR row_ptr:" << std::endl;
@@ -356,9 +381,9 @@ int main(int argc, char * argv[])
 
 		CSR_STRUCTURE csr_S = *similarity_CSR(M_transpose);
 
-		for (int i = 0; i < csr_S.nonzeroes_; i++) {
-			std::cout << "actual value at nnz_val_[" << i << "] is " << csr_S.nnz_val_[i] << " actual value at col_ptr_[" << i << "] is " << csr_S.col_ptr_[i] << std::endl;
-		}
+		//for (int i = 0; i < csr_S.nonzeroes_; i++) {
+		//	std::cout << "actual value at nnz_val_[" << i << "] is " << csr_S.nnz_val_[i] << " actual value at col_ptr_[" << i << "] is " << csr_S.col_ptr_[i] << std::endl;
+		//}
 
 		output_matrix(csr_S, S_outfile);
 		output_matrix(M_transpose, test_outfile);
