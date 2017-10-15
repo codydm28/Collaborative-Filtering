@@ -55,8 +55,46 @@ CSR_STRUCTURE::~CSR_STRUCTURE(void)
 
 void CSR_STRUCTURE::increase_nnz_val_(void)
 {
-	this->nonzeroes_ += 1;
-	double *new_nnz_val_ = new double[this->nonzeroes_];
+	nonzeroes_ += 1;
+
+	int *new_col_ptr = new int[nonzeroes_];
+	double *new_nnz_val = new double[nonzeroes_];
+
+	//std::cout << "col_ptr and nnz_val resize by one: " << nonzeroes_ << std::endl;
+
+	for (int i = 0; i < nonzeroes_; i++) {
+		new_nnz_val[i] = 0;
+	}
+
+	//std::cout << "resize at " << nonzeroes_ - 1 << ": ";
+	for (int i = 0; i < nonzeroes_; i++) {
+		new_col_ptr[i] = col_ptr_[i];
+		new_nnz_val[i] = nnz_val_[i];
+
+		//std::cout << "i=" << i << ", new_nnz_val[i]=" << new_nnz_val[i] << ", ";
+	}
+	//std::cout << std::endl;
+	delete[] col_ptr_;
+	delete[] nnz_val_;
+
+	//col_ptr_ = new_col_ptr;
+	//nnz_val_ = new_nnz_val;
+	
+	nnz_val_ = new double[nonzeroes_];
+	col_ptr_ = new int[nonzeroes_];
+
+	for (int i = 0; i < nonzeroes_; i++) {
+		nnz_val_[i] = 0;
+	}
+
+	for (int i = 0; i < nonzeroes_; i++) {
+		col_ptr_[i] = new_col_ptr[i];
+		nnz_val_[i] = new_nnz_val[i];
+	}
+	
+
+	delete[] new_col_ptr;
+	delete[] new_nnz_val;
 
 }
 

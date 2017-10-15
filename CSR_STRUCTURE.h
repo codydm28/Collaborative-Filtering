@@ -14,6 +14,7 @@ public:
 
 	void increase_nnz_val_(void);
 
+
 	double * nnz_val_;
 	int * col_ptr_;
 	int * row_ptr_;

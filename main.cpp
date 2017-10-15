@@ -143,12 +143,14 @@ CSR_STRUCTURE* similarity_CSR(CSR_STRUCTURE &csr_matrix)
 
 	CSR_STRUCTURE sim_CSR(csr_matrix.rows_, csr_matrix.columns_, 0);
 	int *row_counts = new int[csr_matrix.rows_ + 1];
+	int col_ctr_index = 0;
 	int col_ctr = 0;
 
 	for (int i = 0; i < csr_matrix.rows_; i++)
 	{
 		for (int j = 0; j < csr_matrix.rows_; j++)
 		{
+			col_ctr = j;
 			int row_i = csr_matrix.row_ptr_[i + 1] - csr_matrix.row_ptr_[i];
 			int row_j = csr_matrix.row_ptr_[j + 1] - csr_matrix.row_ptr_[j];
 			int ni = 0, nj = 0;
@@ -199,21 +201,52 @@ CSR_STRUCTURE* similarity_CSR(CSR_STRUCTURE &csr_matrix)
 			}//end while
 
 			/*calculate the cos(i,j)*/
+			//only stores the non-zero calculations in the CSR structure
 			if (lengthi * lengthj)
 			{
 				cosine /= sqrt(lengthi * lengthj);
-
-				sim_CSR.nnz_val_[j] = cosine;
-				sim_CSR.col_ptr_[col_ctr] = j;
+				if (cosine > 0) 
+				{
+					sim_CSR.increase_nnz_val_();
+					sim_CSR.nnz_val_[col_ctr_index] = cosine;
+					sim_CSR.col_ptr_[col_ctr_index] = col_ctr;
+					sim_CSR.row_ptr_[i+1]++;
+					col_ctr_index++;
+				}
+				else {
+					col_ctr++;
+				}
 			}
 			else {
 				cosine = 0;
+				col_ctr++;
 			}
+			//std::cout << "for row i=" << i << "nnz_val_[" << j << "] = " << cosine << ", but actual value at nnz_val_[" << j << "] is " << sim_CSR.nnz_val_[j] << std::endl;
 
 		}//end for j
-
+		sim_CSR.row_ptr_[i+1] += sim_CSR.row_ptr_[i];
+		for (int k = 0; k < sim_CSR.nonzeroes_; k++) {
+			std::cout << "actual value at nnz_val_[" << k << "] is " << sim_CSR.nnz_val_[k] << std::endl;
+		}
 	}//end for i
 
+	/*
+	std::cout << "values in sim_CSR row_ptr:" << std::endl;
+	for (int i = 0; i < sim_CSR.rows_ + 1; i++) {
+		std::cout << sim_CSR.row_ptr_[i] << ", ";
+	}
+	std::cout << std::endl;
+	*/
+
+	/*
+	std::cout << "values in sim_CSR nnz_val:";
+	for (int i = 0; i < sim_CSR.nonzeroes_; i++) {
+		std::cout << sim_CSR.nnz_val_[i] << ", ";
+	}
+	std::cout << std::endl;
+	*/
+
+	return new CSR_STRUCTURE(sim_CSR);
 }
 
 //, double threshold_in
@@ -310,7 +343,9 @@ int main(int argc, char * argv[])
 	{
 		std::ifstream train_file(argv[1]);
 		std::ifstream test_file(argv[2]);
-		std::ofstream train_outfile(argv[3], std::ofstream::out);
+
+		std::ofstream S_outfile(argv[3], std::ofstream::out);
+
 		std::ofstream test_outfile(argv[4], std::ofstream::out);
 		//std::ofstream cos_sim_outfile(argv[3], std::ofstream::out);
 
@@ -319,10 +354,17 @@ int main(int argc, char * argv[])
 		CSR_STRUCTURE csr_T = *input_matrix_to_CSR(test_file);
 		CSR_STRUCTURE M_transpose = *create_transpose_matrix(csr_M);
 
-		output_matrix(M_transpose, train_outfile);
-		//output_matrix(M_transpose, test_outfile);
+		CSR_STRUCTURE csr_S = *similarity_CSR(M_transpose);
+
+		for (int i = 0; i < csr_S.nonzeroes_; i++) {
+			std::cout << "actual value at nnz_val_[" << i << "] is " << csr_S.nnz_val_[i] << " actual value at col_ptr_[" << i << "] is " << csr_S.col_ptr_[i] << std::endl;
+		}
+
+		output_matrix(csr_S, S_outfile);
+		output_matrix(M_transpose, test_outfile);
+		
 		//output_matrix(csr_T, test_outfile);
-		//calculate_similarity(M_transpose, test_outfile);
+		//calculate_similarity(M_transpose, test_outfile, 0);
 
 	}//end if
 	else
