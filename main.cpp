@@ -6,9 +6,10 @@
 #include <cstdlib>
 #include <cmath>
 #include <vector>
+#include <algorithm>
 
 //returns pointer to new transpose matrix
-CSR_STRUCTURE* create_transpose_matrix(CSR_STRUCTURE &csr_matrix)
+CSR_STRUCTURE* CreateTransposeMatrix(CSR_STRUCTURE &csr_matrix)
 {
 
 	int transpose_rows = csr_matrix.columns_;
@@ -61,7 +62,7 @@ CSR_STRUCTURE* create_transpose_matrix(CSR_STRUCTURE &csr_matrix)
 }
 
 /*IO function that outputs any matrix to an output file*/
-void output_matrix(CSR_STRUCTURE &csr_matrix, std::ofstream &matrix_of)
+void OutputMatrix(CSR_STRUCTURE &csr_matrix, std::ofstream &matrix_of)
 {
 	matrix_of << csr_matrix.rows_ << " " << csr_matrix.columns_ << " " << csr_matrix.nonzeroes_ << "\n";
 
@@ -77,7 +78,7 @@ void output_matrix(CSR_STRUCTURE &csr_matrix, std::ofstream &matrix_of)
 }
 
 //returns pointer to new csr_matrix
-CSR_STRUCTURE* input_matrix_to_CSR(std::ifstream &in_file)
+CSR_STRUCTURE* InputMatrixToCSR(std::ifstream &in_file)
 {
 	int counter = 0;
 	int matrix_info[3];
@@ -139,7 +140,8 @@ CSR_STRUCTURE* input_matrix_to_CSR(std::ifstream &in_file)
 	return new CSR_STRUCTURE(newCSR);
 }
 
-CSR_STRUCTURE* similarity_CSR(CSR_STRUCTURE &csr_matrix)
+/*this function overallocates for the csr nnz_val[] and col_ptr, but the rest of the code doesnt go past it, very wasteful on memory*/
+CSR_STRUCTURE* SimilarityCSR(CSR_STRUCTURE &csr_matrix)
 {
 
 	
@@ -148,6 +150,7 @@ CSR_STRUCTURE* similarity_CSR(CSR_STRUCTURE &csr_matrix)
 	std::vector<double> sim_nnz;
 	std::vector<int> sim_col;
 	int *row_counts = new int[csr_matrix.rows_ + 1];
+	CSR_STRUCTURE sim_CSR(csr_matrix.rows_, csr_matrix.rows_, csr_matrix.rows_*csr_matrix.rows_);
 
 	for (int i = 0; i < csr_matrix.rows_ + 1; i++) {
 		row_counts[i] = 0;
@@ -220,9 +223,11 @@ CSR_STRUCTURE* similarity_CSR(CSR_STRUCTURE &csr_matrix)
 					//sim_CSR.increase_nnz_val_();
 					//sim_nnz[col_ctr_index] = cosine;
 					//sim_col[col_ctr_index] = col_ctr;
-					sim_nnz.push_back(cosine);
-					sim_col.push_back(col_ctr);
-					row_counts[i+1]++;
+					//sim_nnz.push_back(cosine);
+					//sim_col.push_back(col_ctr);
+					sim_CSR.nnz_val_[col_ctr_index] = cosine;
+					sim_CSR.col_ptr_[col_ctr_index] = col_ctr;
+					sim_CSR.row_ptr_[i+1]++;
 					col_ctr_index++;
 				}
 				else {
@@ -234,26 +239,27 @@ CSR_STRUCTURE* similarity_CSR(CSR_STRUCTURE &csr_matrix)
 				col_ctr++;
 			}
 			//std::cout << "for row i=" << i << "nnz_val_[" << j << "] = " << cosine << ", but actual value at nnz_val_[" << j << "] is " << sim_CSR.nnz_val_[j] << std::endl;
-			std::cout << col_ctr_index << std::endl;
+			//std::cout << col_ctr_index << std::endl;
 		}//end for j
-		row_counts[i+1] += row_counts[i];
+		sim_CSR.row_ptr_[i+1] += sim_CSR.row_ptr_[i];
 		//for (int k = 0; k < sim_CSR.nonzeroes_; k++) {
 			//std::cout << "actual value at nnz_val_[" << k << "] is " << sim_CSR.nnz_val_[k] << std::endl;
 		//}
 	}//end for i
-	std::cout << "out of cosine for loops" << std::endl;
-	CSR_STRUCTURE sim_CSR(csr_matrix.rows_, csr_matrix.rows_, col_ctr_index);
+	//std::cout << "out of cosine for loops" << std::endl;
+	
 	sim_CSR.nnz_val_vec = sim_nnz;
 	sim_CSR.col_ptr_vec = sim_col;
-	
-	for (int i = 0; i < sim_CSR.nonzeroes_; i++) {
-		sim_CSR.nnz_val_[i] = sim_nnz[i];
-		sim_CSR.col_ptr_[i] = sim_col[i];
-	}
 
-	for (int i = 0; i < sim_CSR.rows_+1; i++) {
-		sim_CSR.row_ptr_[i] = row_counts[i];
-	}
+	//sim_CSR.setNonZeros(col_ctr_index);
+	sim_CSR.nonzeroes_ = col_ctr_index;
+	
+	//could initialize sim_CSR nonzeros to row*row, which is the max # of entries
+	//then resize it, reduce the linear complexity of having to copy the values over
+	//for (int i = 0; i < sim_CSR.nonzeroes_; i++) {
+	//	sim_CSR.nnz_val_[i] = sim_nnz[i];
+	//	sim_CSR.col_ptr_[i] = sim_col[i];
+	//}
 
 	/*
 	std::cout << "values in sim_CSR row_ptr:" << std::endl;
@@ -266,7 +272,7 @@ CSR_STRUCTURE* similarity_CSR(CSR_STRUCTURE &csr_matrix)
 	/*
 	std::cout << "values in sim_CSR nnz_val:";
 	for (int i = 0; i < sim_CSR.nonzeroes_; i++) {
-		std::cout << sim_CSR.nnz_val_[i] << ", ";
+		std::cout << sim_CSR.col_ptr_[i] << ", ";
 	}
 	std::cout << std::endl;
 	*/
@@ -274,8 +280,15 @@ CSR_STRUCTURE* similarity_CSR(CSR_STRUCTURE &csr_matrix)
 	return new CSR_STRUCTURE(sim_CSR);
 }
 
+double element_in_S(CSR_STRUCTURE csr_matrix, int i, int j) 
+{
+
+	return csr_matrix.nnz_val_[csr_matrix.row_ptr_[i] + j];
+
+}
+
 //, double threshold_in
-void calculate_similarity(CSR_STRUCTURE &csr_matrix, std::ofstream &sim_of, double threshold_in)
+void CalculateSimilarity(CSR_STRUCTURE &csr_matrix, std::ofstream &sim_of, double threshold_in)
 {
 	/*checks all pairs including the similarity with itself and (j,i), which sim(i,j) == sim(j,i)*/
 	for (int i = 0; i < csr_matrix.rows_; i++)
@@ -357,36 +370,195 @@ void calculate_similarity(CSR_STRUCTURE &csr_matrix, std::ofstream &sim_of, doub
 
 }//end cosine sim
 
+/*calculates item similarites and returns the vector*/
+std::vector<double>* CalculateVecMatrix(CSR_STRUCTURE &csr_R_in, int u, CSR_STRUCTURE &csr_S_in, int N_rec)
+{
+	//int j = 0;
+	double *uvec = new double[csr_R_in.columns_];
+	//double *x = new double[csr_R_in.columns_];
+	std::vector<double> x(csr_R_in.columns_);
+	int nnz_vals_in_row = csr_R_in.row_ptr_[u] - csr_R_in.row_ptr_[u + 1];
 
+	//initialize both arrays to zeros, biproduct of doing so will only leave us with putting the nonzero values in the array
+	for (int i = 0; i < csr_R_in.columns_; i++) 
+	{
+		//x[i] = 0;
+		uvec[i] = 0;
+	}
+
+	//throw non-zero values in there respective place in the row
+	for (int i = csr_R_in.row_ptr_[u]; i < csr_R_in.row_ptr_[u + 1]; i++) {
+		uvec[csr_R_in.col_ptr_[i]] = csr_R_in.nnz_val_[csr_R_in.col_ptr_[i]];
+	}
+
+	//for (int i = 0; i < csr_S_in.nonzeroes_; i++) {
+	//	std::cout << "i: " << i << " nonzero: " << csr_S_in.nnz_val_[i] << ", " << std::endl;
+	//}
+
+	for (int i = 0; i < csr_S_in.rows_; i++) {
+		//std::cout << "for row " << i << " in S: ";
+		for (int k = csr_S_in.row_ptr_[i]; k < csr_S_in.row_ptr_[i + 1]; k++) {
+			int j = csr_S_in.col_ptr_[k];
+			double val = csr_S_in.nnz_val_[k];
+			//double num = 0;
+			//num += val * uvec[i];
+			//std::cout << val << ", nonzero val at k: " << csr_S_in.nnz_val_[k] << std::endl;
+
+			//x[j] += val * uvec[i];
+
+			x.at(j) += val * uvec[i];
+			
+		}
+		//std::cout << std::endl;
+
+	}
+
+	//get rid of purchased items for the user
+	int nnz_ctr = 0;
+	while (nnz_ctr < csr_R_in.row_ptr_[u + 1] - csr_R_in.row_ptr_[u]) 
+	{
+		if (csr_R_in.nnz_val_[nnz_ctr] > 0) {
+			x[csr_R_in.col_ptr_[nnz_ctr]] = 0;
+			nnz_ctr++;
+		}
+		else {
+			nnz_ctr++;
+		}
+	}
+	
+	//for (std::vector<double>::iterator it = x.begin(); it != x.end(); it++)
+	//{
+		//if (x[i] > 0) {
+
+	//	std::cout << *it << ", ";
+
+		//}
+	//}
+
+	//std::vector<double> copy_x(x);
+
+	//std::sort(x.begin(), x.end());
+
+	//std::cout << "for user " << u << ": ";
+	//grab the values for the top N and find their index, which is what item they are
+
+	//std::vector<double>::iterator it = x.end();
+	//std::advance(it, csr_R_in.columns_ - N_rec);
+
+
+	//get top N items
+	/*
+	int n_ctr = 0;
+	double *item_sim_val = new double[N_rec];
+	//std::cout << "x.at(csr_R_columns)" << x.at(1681) << std::endl;
+	while (n_ctr < N_rec) {
+		item_sim_val[n_ctr] = x.at(csr_R_in.columns_ - n_ctr - 1);
+		n_ctr++;
+	}
+	*/
+	//for (int i = 0; i < N_rec; i++) {
+	//	std::cout << item_sim_val[i] << ", ";
+	//}
+
+	//find their item number
+	/*
+	int *item = new int[N_rec];
+	//go through the each val in item_sim array and find its column number ("the item")
+	for (int j = 0; j < N_rec; j++) {
+		for (int i = 0; i < csr_R_in.columns_; i++) {
+			if (item_sim_val[j] == copy_x[i]) {
+				item[j] = i+1;
+			}
+		}
+	}
+	*/
+	//std::cout << std::endl;
+
+	//for (int i = 0; i < N_rec; i++) {
+	//	std::cout << item[i] << ", ";
+	//}
+
+	return new std::vector<double>(x);
+
+}
+
+//takes in copy of vec_matrix
+double* TopNItemScores(std::vector<double> vec_matrix, CSR_STRUCTURE &csr_R_in, int N_rec)
+{
+	//std::vector<double> copy_vec_matrix(vecmatrix);
+	std::sort(vec_matrix.begin(), vec_matrix.end());
+	int n_ctr = 0;
+	double *item_sim_val = new double[N_rec];
+
+	while (n_ctr < N_rec)
+	{
+		item_sim_val[n_ctr] = vec_matrix.at(csr_R_in.columns_ - n_ctr - 1);
+		n_ctr++;
+	}
+
+	return item_sim_val;
+}
+
+int* TopNItems(std::vector<double> vec_matrix, CSR_STRUCTURE &csr_R_in, double *item_scores, int N_rec)
+{
+	int *item = new int[N_rec];
+	for (int i = 0; i < N_rec; i++) {
+		for (int j = 0; j < csr_R_in.columns_; j++) {
+			if (item_scores[i] == vec_matrix[j]) {
+				item[i] = j + 1;
+			}
+		}
+	}
+
+	return item;
+}
 
 
 int main(int argc, char * argv[])
 {
-
-	/*makes sure there are exactly 5 aguments and the threshold is a value between [0,1]*/
+	int *top_N;
+	double *top_N_scores;
+	std::vector<double> vec_matrix_calc;
+	/*makes sure there are exactly 5 arguments and the threshold*/
 	if (argc == 5)
 	{
 		std::ifstream train_file(argv[1]);
 		std::ifstream test_file(argv[2]);
 
-		std::ofstream S_outfile(argv[3], std::ofstream::out);
+		int N = atoi(argv[3]);
+		//std::ofstream S_outfile(argv[3], std::ofstream::out);
 
-		std::ofstream test_outfile(argv[4], std::ofstream::out);
+		//std::ofstream test_outfile(argv[4], std::ofstream::out);
 		//std::ofstream cos_sim_outfile(argv[3], std::ofstream::out);
 
 		//gets reference of new csr_structure created by the functions
-		CSR_STRUCTURE csr_M = *input_matrix_to_CSR(train_file);
-		CSR_STRUCTURE csr_T = *input_matrix_to_CSR(test_file);
-		CSR_STRUCTURE M_transpose = *create_transpose_matrix(csr_M);
+		CSR_STRUCTURE csr_M = *InputMatrixToCSR(train_file);
+		CSR_STRUCTURE csr_T = *InputMatrixToCSR(test_file);
+		CSR_STRUCTURE M_transpose = *CreateTransposeMatrix(csr_M);
 
-		CSR_STRUCTURE csr_S = *similarity_CSR(M_transpose);
+		CSR_STRUCTURE csr_S = *SimilarityCSR(M_transpose);
+
 
 		//for (int i = 0; i < csr_S.nonzeroes_; i++) {
 		//	std::cout << "actual value at nnz_val_[" << i << "] is " << csr_S.nnz_val_[i] << " actual value at col_ptr_[" << i << "] is " << csr_S.col_ptr_[i] << std::endl;
 		//}
 
-		output_matrix(csr_S, S_outfile);
-		output_matrix(M_transpose, test_outfile);
+		//output_matrix(csr_S, S_outfile);
+
+		for (int i = 0; i < csr_M.rows_; i++) {
+			vec_matrix_calc = *CalculateVecMatrix(csr_M, i, csr_S, N);
+			top_N_scores = TopNItemScores(vec_matrix_calc, csr_M, N);
+			top_N = TopNItems(vec_matrix_calc, csr_M, top_N_scores, N);
+			
+			std::cout << "user " << i+1 << ": ";
+			for (int j = 0; j < N; j++) {
+				std::cout << top_N[j] << ", ";
+			}
+			std::cout << std::endl;
+			
+
+		}
+		//output_matrix(M_transpose, test_outfile);
 		
 		//output_matrix(csr_T, test_outfile);
 		//calculate_similarity(M_transpose, test_outfile, 0);

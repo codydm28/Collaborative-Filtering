@@ -13,6 +13,8 @@ public:
 	CSR_STRUCTURE(const CSR_STRUCTURE &csr);
 	~CSR_STRUCTURE();
 
+	//int *new_col_ptr, double *new_nnz_nal, 
+	void setNonZeros(int new_nonzeroes);
 	//void increase_nnz_val_(void);
 
 	std::vector<double> nnz_val_vec;

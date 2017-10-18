@@ -53,6 +53,16 @@ CSR_STRUCTURE::~CSR_STRUCTURE(void)
 	
 }
 
+//int *new_col_ptr, double *new_nnz_val, 
+void CSR_STRUCTURE::setNonZeros(int new_nonzeroes)
+{
+	nonzeroes_ = new_nonzeroes;
+	nnz_val_ = new double[new_nonzeroes];
+	col_ptr_ = new int[new_nonzeroes];
+
+	//nnz_val_ = new_nnz_val;
+	//col_ptr_ = new_col_ptr;
+}
 /*
 void CSR_STRUCTURE::increase_nnz_val_(void)
 {
