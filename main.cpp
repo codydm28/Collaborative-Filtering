@@ -7,6 +7,7 @@
 #include <cmath>
 #include <vector>
 #include <algorithm>
+#include <time.h>
 
 //returns pointer to new transpose matrix
 CSR_STRUCTURE* CreateTransposeMatrix(CSR_STRUCTURE &csr_matrix)
@@ -513,20 +514,34 @@ int* TopNItems(std::vector<double> vec_matrix, CSR_STRUCTURE &csr_R_in, double *
 	return item;
 }
 
+void OutputRecommendations(double *score_matrix, int *item_matrix, std::ofstream &rec_of, int N_rec)
+{
+	for (int i = 0; i < N_rec; i++) 
+	{
+		rec_of << item_matrix[i] << " " << score_matrix[i] << " ";
+	}
+	rec_of << "\n";
+}
+
 
 int main(int argc, char * argv[])
 {
 	int *top_N;
 	double *top_N_scores;
 	std::vector<double> vec_matrix_calc;
+	int hit_ctr = 0;
+	double hit_rate = 0;
+	double ar_hit_rate = 0;
+	double rank_i = 0;
+	clock_t t;
 	/*makes sure there are exactly 5 arguments and the threshold*/
-	if (argc == 5)
+	if (argc == 5 && atoi(argv[3]) > 0)
 	{
 		std::ifstream train_file(argv[1]);
 		std::ifstream test_file(argv[2]);
 
 		int N = atoi(argv[3]);
-		//std::ofstream S_outfile(argv[3], std::ofstream::out);
+		std::ofstream rec_outfile(argv[4], std::ofstream::out);
 
 		//std::ofstream test_outfile(argv[4], std::ofstream::out);
 		//std::ofstream cos_sim_outfile(argv[3], std::ofstream::out);
@@ -534,8 +549,10 @@ int main(int argc, char * argv[])
 		//gets reference of new csr_structure created by the functions
 		CSR_STRUCTURE csr_M = *InputMatrixToCSR(train_file);
 		CSR_STRUCTURE csr_T = *InputMatrixToCSR(test_file);
-		CSR_STRUCTURE M_transpose = *CreateTransposeMatrix(csr_M);
 
+		t = clock();
+
+		CSR_STRUCTURE M_transpose = *CreateTransposeMatrix(csr_M);
 		CSR_STRUCTURE csr_S = *SimilarityCSR(M_transpose);
 
 
@@ -543,23 +560,46 @@ int main(int argc, char * argv[])
 		//	std::cout << "actual value at nnz_val_[" << i << "] is " << csr_S.nnz_val_[i] << " actual value at col_ptr_[" << i << "] is " << csr_S.col_ptr_[i] << std::endl;
 		//}
 
-		//output_matrix(csr_S, S_outfile);
-
+		//OutputMatrix(csr_T, S_outfile);
+		//
 		for (int i = 0; i < csr_M.rows_; i++) {
 			vec_matrix_calc = *CalculateVecMatrix(csr_M, i, csr_S, N);
 			top_N_scores = TopNItemScores(vec_matrix_calc, csr_M, N);
 			top_N = TopNItems(vec_matrix_calc, csr_M, top_N_scores, N);
+			OutputRecommendations(top_N_scores, top_N, rec_outfile, N);
 			
-			std::cout << "user " << i+1 << ": ";
+			//std::cout << "user " << i+1 << ": ";
+			//std::cout << csr_T.row_ptr_[i] << ", " << csr_T.row_ptr_[i + 1];
 			for (int j = 0; j < N; j++) {
-				std::cout << top_N[j] << ", ";
+				for (int k = csr_T.row_ptr_[i]; k <= csr_T.row_ptr_[i+1]; k++) {
+				
+					//std::cout << top_N[j] << ", ";
+				
+					if (top_N[j] == csr_T.col_ptr_[k] + 1) {
+						hit_ctr++;
+						//std::cout << "hit for user " << i << " item " << top_N[j] << std::endl;
+						rank_i += double(j);
+					}
+				}
 			}
-			std::cout << std::endl;
-			
+			//std::cout << "rank" << rank_i << std::endl;
 
+			//for (int k = csr_T.row_ptr_[i]; k < csr_T.row_ptr_[i + 1]; k++) {
+			//	std::cout << csr_T.col_ptr_[k] << ", ";
+			//}
+			//std::cout << std::endl;
+			
 		}
 		//output_matrix(M_transpose, test_outfile);
 		
+		hit_rate = hit_ctr / double(csr_T.rows_);
+		ar_hit_rate = (1 / double(csr_T.rows_)) * rank_i;
+
+		t = clock() - t;
+
+		std::cout << "HR = " << hit_rate << std::endl;
+		std::cout << "ARHR = " << ar_hit_rate << std::endl;
+		std::cout << (((float)t) / CLOCKS_PER_SEC) * 1000 << " ms" << std::endl;
 		//output_matrix(csr_T, test_outfile);
 		//calculate_similarity(M_transpose, test_outfile, 0);
 
