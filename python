@@ -1,0 +1,43 @@
+import csv
+import numpy as np
+import math
+
+def cos_simularity(j, i):
+    nrowi = row_ptr[i + 1] - row_ptr[i]
+    nrowj = row_ptr[j + 1] - row_ptr[j]
+
+    ni = 0
+    nj = 0
+    cosine = 0
+    lengthi = 0
+    lengthj = 0
+
+    while(ni < nrowi and nj < nrowj):
+        ci = row_ptr[i] + ni -1
+        cj = row_ptr[j] + nj -1
+
+        if(col_ind[ci] == col_ind[cj]):
+           cosine += val[ci] * val[cj]
+           lengthi += val[ci] * val[ci]
+           lengthj += val[cj] * val[cj]
+           ni += 1
+           nj += 1
+        elif (col_ind[ci] > col_ind[cj]):
+            lengthj += val[cj] * val[cj]
+            nj += 1
+        else:
+            lengthi += val[ci] * val[ci]
+            ni += 1
+    while (ni < nrowi):
+        ci = row_ptr[i] + ni -1
+        lengthi += val[ci] * val[ci]
+        ni += 1
+    while (nj < nrowj):
+        cj = row_ptr[j] + nj -1
+        lengthj += val[cj] * val[cj]
+        nj += 1
+    if (lengthi * lengthj):
+        cosine /= math.sqrt(lengthi * lengthj)
+    else:
+        cosine = 0
+    return cosine
